@@ -1,0 +1,149 @@
+---
+title: "Regularized Regression & Corals"
+author: "S. Eanes"
+date: "2/21/2020"
+output:
+  html_document:
+    df_print: paged
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r import,warning=F}
+library(glmnet)
+library(glmnetUtils)
+library(plotmo)
+library(tidyverse)
+library(MLmetrics)
+```
+
+## Data Setup
+Here we clean the data down to our selected sample and scale the predictors. 
+```{r data}
+coral <- read.csv("C:/Users/shado/Documents/School/Fossil Coral/data/coral_3weighted.csv")
+
+#omit data with no response
+coral <- coral[!is.na(coral$U238),]
+
+#select three largest species
+genus_trim <- c("Acropora", "Porites", "Favia")
+#remove coral with age > 10
+coral <- coral[which(coral$Genus %in% genus_trim),]  %>% dplyr::filter(Age < 10)
+
+#clean up a nice dataframe
+coral.df <- coral %>% mutate(Temperature = Temp) %>%
+  select(U238,pH,TAlk,Salinity,Temperature,OmegaA,TCO2) %>%
+  scale() %>%
+  data.frame()
+nrow(coral.df)
+```
+
+## Data Distribution
+
+Plot the distributions of the predictors. 
+```{r distributions}
+ggplot(gather(coral.df),aes(value))+
+  geom_histogram(bins=10)+
+  facet_wrap(~key, scales = 'free_x')
+```
+
+## Bootstrap Lasso Function
+
+We build a function that takes in the number of bootstraps to compute, and the grid of lambda values to input in the glmnet function. This is the penalty paramater that determines the strinkage. The function will cross validate over this range of values to determine the minimum and 1 standard error values. Refer to glmnet documentation for more details. This function outputs a dataframe for each of the bootstrap iterations lambda and MSE values, as well as the coefficients for each iteration.
+```{r lasso}
+##LASSO
+coralboot <- function(n.boot=100,lambda.grid=exp(seq(-10,1,length=200)),verbose=F){
+
+  lambda.min <- numeric(n.boot)
+  lambda.1se <- numeric(n.boot)
+
+  mse.min <- numeric(n.boot)
+  mse.1se <- numeric(n.boot)
+
+  coef.min <- matrix(nrow=ncol(coral.df),ncol=n.boot)
+  rownames(coef.min) <- c("Intercept",colnames(coral.df %>% select(-U238)))
+  coef.1se <- matrix(nrow=ncol(coral.df),ncol=n.boot)
+  rownames(coef.1se) <- c("Intercept",colnames(coral.df %>% select(-U238)))
+  
+  
+  for(i in 1:n.boot){
+    if(verbose){print(i)}
+  
+    samp <- sample(1:nrow(coral.df),nrow(coral.df),replace = T)
+    bootsamp <- coral.df[samp,]
+    oob <- coral.df[-samp,]
+
+    cv.lasso <- cv.glmnet(U238 ~ ., data=bootsamp,alpha=1,lambda=lambda.grid,intercept=F)
+    
+    lambda.min[i] <- cv.lasso$lambda.min
+    lambda.1se[i] <- cv.lasso$lambda.1se
+
+
+    mod.lasso.min <- glmnet(U238 ~ .,
+                            data=bootsamp,alpha=1,lambda=cv.lasso$lambda.min,intercept=F)
+    mod.lasso.1se <- glmnet(U238 ~ .,
+                            data=bootsamp,alpha=1,lambda=cv.lasso$lambda.1se,intercept=F)
+    
+
+    p1 <- predict(mod.lasso.min,oob)
+    p2 <- predict(mod.lasso.1se,oob)
+
+    mse.min[i] <- RMSE(p1,oob$U238)
+    mse.1se[i] <- RMSE(p2,oob$U238)
+  
+
+    coef.min[,i] <- coef(mod.lasso.min) %>% as.matrix()
+    coef.1se[,i] <- coef(mod.lasso.1se) %>% as.matrix()
+  }
+
+  cbind(lambda.min=lambda.min,lambda.1se=lambda.1se,mse.min=mse.min,mse.1se=mse.1se,coef.min=t(coef.min),coef.1se=t(coef.1se)) %>% data.frame()
+}
+```
+
+## Bootstrap
+
+Here, we set a seed to achieve consistent results, then apply the function, parse the data we want from the resulting data frame and construct a figure that summarises the results.
+```{r}
+set.seed(123)
+cboot <- coralboot(n.boot=1000,verbose=F)
+cboot$mse.min %>% mean()
+cboot$mse.1se %>% mean()
+coefs <- cboot %>% select(-lambda.min,-lambda.1se,-mse.min,-mse.1se,-Intercept,-Intercept.1)
+means <- colMeans(coefs)
+sdevs <- apply(coefs,2,sd)
+
+
+#the min lambda coefs
+coefsMin <- data.frame(coefs[1:(ncol(coral.df)-1)])
+#the 1se lambda coefs
+coefs1SE <- data.frame(coefs[(ncol(coral.df)):ncol(coefs)])
+colnames(coefs1SE) <- colnames(coefsMin)
+
+coefGatherMin <- coefsMin %>% gather() %>% cbind(rep("min",nrow(coefsMin)))
+colnames(coefGatherMin) <- c("variable","coefficient","type")
+coefGather1SE <- coefs1SE %>% gather() %>% cbind(rep("1se",nrow(coefs1SE)))
+colnames(coefGather1SE) <- c("variable","coefficient","type")
+
+coefGatherBoth <- rbind(coefGatherMin,coefGather1SE) %>% data.frame() 
+
+#uncomment the following line and the dev.off() line to save an image of the figure locally
+#tiff("~/School/Figure8.tiff", width = 10, height = 5, units = 'in', res = 300)
+ggplot(coefGatherMin, aes(variable,coefficient))+
+  geom_boxplot()
+#dev.off()
+```
+
+## Overlay Min and 1SE results
+
+Here we can see that all of the 1SE values tend to cluster near 0, which makes sense because the 1se value of lambda will apply a more aggressive shrinkage.
+
+```{r}
+dat1 <- coefGatherBoth %>% filter(type=="min") %>% group_by(variable,type) %>% summarise(n=n(), mean=mean(coefficient),sd=sd(coefficient))
+dat2 <- coefGatherBoth %>% filter(type=="1se") %>% group_by(variable,type) %>% summarise(n=n(), mean=mean(coefficient),sd=sd(coefficient))
+
+coefGatherBoth %>% 
+  ggplot(aes(x=variable,color=type))+
+  geom_point(aes(y=coefficient),alpha=.5)+
+  geom_pointrange(data=dat1,aes(y=mean,ymin=mean-1.96*sd,ymax=mean+1.96*sd),color='black')
+```
