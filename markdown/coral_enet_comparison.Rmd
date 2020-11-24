@@ -1,0 +1,173 @@
+---
+title: "E-Net Comparison"
+author: "S. Eanes"
+date: "2/21/2020"
+output:
+  html_document:
+    df_print: paged
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r import, warning=F, include=F}
+library(glmnet)
+library(glmnetUtils)
+library(plotmo)
+library(tidyverse)
+library(MLmetrics)
+```
+
+## Setup data
+
+Reserve 25% of the data for validation to comparse different modeling techniques.
+
+```{r data}
+coral <- read.csv("C:/Users/shado/Documents/School/Fossil Coral/data/coral_3weighted.csv")
+test.prop <- .75
+
+#omit data with no response
+coral <- coral[!is.na(coral$U238),]
+
+#select three largest species
+genus_trim <- c("Acropora", "Porites", "Favia")
+#remove coral with age > 10
+coral <- coral[which(coral$Genus %in% genus_trim),]  %>% dplyr::filter(Age < 10)
+
+#clean up a nice dataframe
+coral.df <- coral %>% mutate(Temperature = Temp) %>%
+  select(U238,pH,TAlk,Salinity,Temperature,OmegaA,TCO2) %>%
+  scale() %>%
+  data.frame()
+nrow(coral.df)
+
+samp <- sample(1:nrow(coral.df),nrow(coral.df)*(test.prop))
+coral.test <- coral.df[samp,]
+coral.df <- coral.df[-samp,]
+c(nrow(coral.df),nrow(coral.test))
+```
+
+## Compute Lasso RMSE
+
+```{r lasso}
+##LASSO
+lasso <- function() {
+  lambda.grid <- exp(seq(-7.5,0,length=100))
+  cv.lasso <- cv.glmnet(U238 ~ ., data=coral.df,alpha=1,lambda=lambda.grid,intercept=F)
+  #plot(cv.lasso)
+
+  mod.lasso1.grid <- glmnet(U238 ~ ., data=coral.df, alpha=1,lambda=lambda.grid,intercept=F)
+  #uncomment and run alone for plots
+  #plot_glmnet(mod.lasso1.grid,"lambda",label=8)
+
+  mod.lasso.min <- glmnet(U238 ~ ., data=coral.df,alpha=1,lambda=cv.lasso$lambda.min,intercept=F)
+  mod.lasso.1se <- glmnet(U238 ~ ., data=coral.df,alpha=1,lambda=cv.lasso$lambda.1se,intercept=F)
+  cv.lasso$lambda.1se; cv.lasso$lambda.min
+
+  p1 <- predict(mod.lasso.min,coral.test)
+  p2 <- predict(mod.lasso.1se,coral.test)
+
+  lmse.min <- RMSE(p1,coral.test$U238)
+  lmse.1se <- RMSE(p2,coral.test$U238) 
+  c(lmse.min,lmse.1se)
+}
+```
+
+## Compute Ridge RMSE
+
+```{r ridge}
+#RIDGE
+ridge <- function() {
+  lambda.grid <- exp(seq(-8,5,length=100))
+  cv.ridge <- cv.glmnet(U238 ~ ., data=coral.df,alpha=0,lambda=lambda.grid,intercept=F)
+  #plot(cv.ridge)
+
+  mod.ridge1.grid <- glmnet(U238 ~ ., data=coral.df, alpha=0,lambda=lambda.grid,intercept=F)
+  #plot_glmnet(mod.ridge1.grid,"lambda",label=8)
+
+  mod.ridge.min <- glmnet(U238 ~ ., data=coral.df,alpha=0,lambda=cv.ridge$lambda.min,intercept=F)
+  mod.ridge.1se <- glmnet(U238 ~ ., data=coral.df,alpha=0,lambda=cv.ridge$lambda.1se,intercept=F)
+  cv.ridge$lambda.min; cv.ridge$lambda.1se
+
+  p1 <- predict(mod.ridge.min,coral.test)
+  p2 <- predict(mod.ridge.1se,coral.test)
+
+  rmse.min <- RMSE(p1,coral.test$U238)
+  rmse.1se <- RMSE(p2,coral.test$U238)
+  c(rmse.min,rmse.1se)
+}
+```
+
+## Compute Elastic Net ($\alpha=.5$) RMSE
+
+```{r elastic-net}
+
+#ELASTIC-NET
+enet <- function(a1=.5){
+  lambda.grid <- exp(seq(-10,2,length=100))
+  cv.net <- cv.glmnet(U238 ~ ., data=coral.df, alpha=a1,lambda=lambda.grid,intercept=F)
+  #plot(cv.net)
+
+  mod.enet.grid <- glmnet(U238 ~ ., data=coral.df, alpha=a1,lambda=lambda.grid,intercept=F)
+  #plot_glmnet(mod.enet.grid,"lambda",label=8)
+
+  mod.enet.min <- glmnet(U238 ~ ., data=coral.df,alpha=a1,lambda=cv.net$lambda.min,intercept=F)
+  mod.enet.1se <- glmnet(U238 ~ ., data=coral.df,alpha=a1,lambda=cv.net$lambda.1se,intercept=F)
+
+  p1 <- predict(mod.enet.min,coral.test) 
+  p2 <- predict(mod.enet.1se,coral.test)
+
+  emse.min <- RMSE(p1,coral.test$U238)
+  emse.1se <- RMSE(p2,coral.test$U238)
+  c(emse.min,emse.1se)
+}
+```
+
+## Compute many times
+
+Cross-validation can produce slightly different results from run to run, and the random split of test-validation can also produce differing results. To adjust for this, we do the test-train split 10 times, and compute the above regularized regression rmse 100 times for each test-train split, averaging the results.
+
+```{r}
+wrapper_func <- function(){
+  lvals <- lasso()
+  rvals <- ridge()
+  evals <- enet()
+  c(lvals,rvals,evals)
+}
+```
+
+```{r run}
+n <- 10
+resamp <- 5
+averages <- data.frame(matrix(rep(0,resamp*6),ncol=6))
+colnames(averages) <- c("LMSE.min","LMSE.1se","RMSE.min","RMSE.1se","EMSE.min","EMSE.1se")
+  
+for(i in 1:resamp){
+  MSEs <- data.frame(matrix(rep(0,n*6),ncol=6))
+  
+  for(j in 1:n){
+    #print(i)
+    MSEs[j,] <- wrapper_func()
+  }
+  averages[i,] <- colMeans(MSEs)
+}
+```
+
+## Comparison RMSE
+
+```{r}
+sort(colMeans(averages))
+```
+
+### Find an optimal alpha
+
+```{r cv-alpha}
+#CV alpha param
+
+lambda.grid <- exp(seq(-10,2,length=100))
+mod.net <- cva.glmnet(U238 ~ ., data=coral.df,lambda=lambda.grid)
+ALPHA <- mod.net$alpha
+mod.net$modlist[[1]]$cvm
+a1 <- ALPHA[which.min(sapply(mod.net$modlist, function(mod) {print(cbind(min(mod$cvm),lambda.grid[which.min(mod$cvm)]));min(mod$cvm)}))]
+a1
+```

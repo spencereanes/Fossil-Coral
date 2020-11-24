@@ -20,7 +20,7 @@ library(MLmetrics)
 
 ## Data Setup
 Here we clean the data down to our selected sample and scale the predictors. 
-```{r data}
+```{r data,include=F}
 coral <- read.csv("C:/Users/shado/Documents/School/Fossil Coral/data/coral_3weighted.csv")
 
 #omit data with no response
@@ -146,4 +146,9 @@ coefGatherBoth %>%
   ggplot(aes(x=variable,color=type))+
   geom_point(aes(y=coefficient),alpha=.5)+
   geom_pointrange(data=dat1,aes(y=mean,ymin=mean-1.96*sd,ymax=mean+1.96*sd),color='black')
+```
+
+```{r}
+test <- lm(U238 ~ OmegaA + pH + TAlk + TCO2 + Temperature, data=coral.df)
+summary(test)
 ```
