@@ -40,11 +40,6 @@ coral.df <- coral %>% mutate(Temperature = Temp) %>%
   scale() %>%
   data.frame()
 nrow(coral.df)
-
-samp <- sample(1:nrow(coral.df),nrow(coral.df)*(test.prop))
-coral.test <- coral.df[samp,]
-coral.df <- coral.df[-samp,]
-c(nrow(coral.df),nrow(coral.test))
 ```
 
 ## Compute Lasso RMSE
@@ -143,10 +138,14 @@ averages <- data.frame(matrix(rep(0,resamp*6),ncol=6))
 colnames(averages) <- c("LMSE.min","LMSE.1se","RMSE.min","RMSE.1se","EMSE.min","EMSE.1se")
   
 for(i in 1:resamp){
+  print(i)
   MSEs <- data.frame(matrix(rep(0,n*6),ncol=6))
   
+  samp <- sample(1:10,nrow(coral.df),replace=T)==i
+  coral.test <- coral.df[samp,]
+  coral.df <- coral.df[!samp,]
+  
   for(j in 1:n){
-    #print(i)
     MSEs[j,] <- wrapper_func()
   }
   averages[i,] <- colMeans(MSEs)
