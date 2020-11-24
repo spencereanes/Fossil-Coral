@@ -137,8 +137,8 @@ wrapper_func <- function(){
 ```
 
 ```{r run}
-n <- 10
-resamp <- 5
+n <- 100
+resamp <- 10
 averages <- data.frame(matrix(rep(0,resamp*6),ncol=6))
 colnames(averages) <- c("LMSE.min","LMSE.1se","RMSE.min","RMSE.1se","EMSE.min","EMSE.1se")
   
