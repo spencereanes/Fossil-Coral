@@ -20,19 +20,17 @@ library(MLmetrics)
 
 ## Setup data
 
-Reserve 25% of the data for validation to comparse different modeling techniques.
-
 ```{r data}
 coral <- read.csv("C:/Users/shado/Documents/School/Fossil Coral/data/coral_3weighted.csv")
-test.prop <- .75
 
 #omit data with no response
 coral <- coral[!is.na(coral$U238),]
 
 #select three largest species
-genus_trim <- c("Acropora", "Porites", "Favia")
+genus_trim <- c("Acropora", "Porites")
 #remove coral with age > 10
 coral <- coral[which(coral$Genus %in% genus_trim),]  %>% dplyr::filter(Age < 10)
+coral <- coral[(coral$Calcite <= 1 | is.na(coral$Calcite)),]
 
 #clean up a nice dataframe
 coral.df <- coral %>% mutate(Temperature = Temp) %>%
@@ -138,7 +136,7 @@ averages <- data.frame(matrix(rep(0,resamp*6),ncol=6))
 colnames(averages) <- c("LMSE.min","LMSE.1se","RMSE.min","RMSE.1se","EMSE.min","EMSE.1se")
   
 for(i in 1:resamp){
-  print(i)
+  #print(i)
   MSEs <- data.frame(matrix(rep(0,n*6),ncol=6))
   
   samp <- sample(1:10,nrow(coral.df),replace=T)==i

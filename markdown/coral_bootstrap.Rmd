@@ -27,9 +27,12 @@ coral <- read.csv("C:/Users/shado/Documents/School/Fossil Coral/data/coral_3weig
 coral <- coral[!is.na(coral$U238),]
 
 #select three largest species
-genus_trim <- c("Acropora", "Porites", "Favia")
+genus_trim <- c("Acropora", "Porites")
 #remove coral with age > 10
-coral <- coral[which(coral$Genus %in% genus_trim),]  %>% dplyr::filter(Age < 10)
+coral <- coral[which(coral$Genus %in% genus_trim),]  %>% 
+  dplyr::filter(Age < 10) 
+#remove calcite > 1
+coral <- coral[(coral$Calcite <= 1 | is.na(coral$Calcite)),]
 
 #clean up a nice dataframe
 coral.df <- coral %>% mutate(Temperature = Temp) %>%
@@ -39,18 +42,10 @@ coral.df <- coral %>% mutate(Temperature = Temp) %>%
 nrow(coral.df)
 ```
 
-## Data Distribution
-
-Plot the distributions of the predictors. 
-```{r distributions}
-ggplot(gather(coral.df),aes(value))+
-  geom_histogram(bins=10)+
-  facet_wrap(~key, scales = 'free_x')
-```
-
 ## Bootstrap Lasso Function
 
 We build a function that takes in the number of bootstraps to compute, and the grid of lambda values to input in the glmnet function. This is the penalty paramater that determines the strinkage. The function will cross validate over this range of values to determine the minimum and 1 standard error values. Refer to glmnet documentation for more details. This function outputs a dataframe for each of the bootstrap iterations lambda and MSE values, as well as the coefficients for each iteration.
+
 ```{r lasso}
 ##LASSO
 coralboot <- function(n.boot=100,lambda.grid=exp(seq(-10,1,length=200)),verbose=F){
@@ -105,8 +100,8 @@ coralboot <- function(n.boot=100,lambda.grid=exp(seq(-10,1,length=200)),verbose=
 
 Here, we set a seed to achieve consistent results, then apply the function, parse the data we want from the resulting data frame and construct a figure that summarises the results.
 ```{r}
-set.seed(123)
-cboot <- coralboot(n.boot=1000,verbose=F)
+set.seed(789)
+cboot <- coralboot(n.boot=5000,verbose=F)
 cboot$mse.min %>% mean()
 cboot$mse.1se %>% mean()
 coefs <- cboot %>% select(-lambda.min,-lambda.1se,-mse.min,-mse.1se,-Intercept,-Intercept.1)
@@ -148,7 +143,20 @@ coefGatherBoth %>%
   geom_pointrange(data=dat1,aes(y=mean,ymin=mean-1.96*sd,ymax=mean+1.96*sd),color='black')
 ```
 
+## Best Subset Selection
+
 ```{r}
-test <- lm(U238 ~ OmegaA + pH + TAlk + TCO2 + Temperature, data=coral.df)
-summary(test)
+Y <- c("Temperature","Salinity","pH","TCO2","OmegaA","TAlk")
+
+out <- unlist(lapply(1:length(Y), function(n) combn(Y, n, FUN=function(row) paste0("U238 ~ ", paste0(row, collapse = "+")))))
+head(out)
+
+library(broom)
+tmp = dplyr::bind_rows(lapply(out, function(frml) {
+  a = glance(lm(frml, data=coral.df))
+  a$frml = frml
+  return(a)
+}))
+tmp[order(tmp$AIC),]$frml %>% head()
+tmp[order(tmp$BIC),]$frml %>% head()
 ```
