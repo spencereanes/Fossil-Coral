@@ -50,9 +50,8 @@ nrow(coral.df)
 ```
 
 ```{r}
-## the next two outliers are 773 and 787 in coral.df, or 774 and 788 in coral
-coral[c(744,788),]
-#collected at different sites, from the same lab
+## three outliers
+coral[c(114,647,661),]
 ```
 
 ## Data Distribution
