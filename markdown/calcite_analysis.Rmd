@@ -39,6 +39,10 @@ nrow(coral.df)
 ```
 
 ```{r}
+coral[coral$LabID==9,]
+```
+
+```{r}
 library(corrplot)
 coral.df <- coral.df %>% rename( Temp = Temperature, Omega = OmegaA)
 corrplot.mixed(cor(coral.df),lower.col="black")
