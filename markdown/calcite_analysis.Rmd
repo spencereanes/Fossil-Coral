@@ -16,18 +16,17 @@ library(tidyverse)
 ## Setup data
 
 ```{r data}
-coral <- read.csv("C:/Users/shado/Documents/School/Fossil Coral/data/coral_3weighted.csv")
+coral <- read.csv("~/School/Fossil Coral/data/coral_3weighted.csv")
 
 #omit data with no response
 coral <- coral[!is.na(coral$U238),]
 
+
 #select three largest species
 genus_trim <- c("Acropora", "Porites")
 #remove coral with age > 10
-coral <- coral[which(coral$Genus %in% genus_trim),]  %>% 
-  dplyr::filter(Age < 10) %>%
-  dplyr::filter(Calcite < 1 || is.na(Calcite))
-#remove coral with calcite > 1
+coral <- coral[which(coral$Genus %in% genus_trim),]  %>% dplyr::filter(Age < 10)
+coral <- coral[(coral$Calcite <= 1 | is.na(coral$Calcite)),]
 
 #clean up a nice dataframe
 coral.df <- coral %>% mutate(Temperature = Temp) %>%

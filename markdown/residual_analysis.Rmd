@@ -21,7 +21,7 @@ library(lmtest)
 ## Setup data
 
 ```{r data}
-coral <- read.csv("C:/Users/shado/Documents/School/Fossil Coral/data/coral_3weighted.csv")
+coral <- read.csv("~/School/Fossil Coral/data/coral_3weighted.csv")
 
 #omit data with no response
 coral <- coral[!is.na(coral$U238),]
@@ -33,25 +33,27 @@ coral <- coral[which(coral$Genus %in% genus_trim),]  %>% dplyr::filter(Age < 10)
 coral <- coral[(coral$Calcite <= 1 | is.na(coral$Calcite)),]
 
 #clean up a nice dataframe
-coral.df <- coral %>% mutate(Temperature = Temp) %>%
+coral.df <- coral %>% mutate(Temperature = Temp, U238=U238*.421) %>%
   select(U238,pH,TAlk,Salinity,Temperature,OmegaA,TCO2) %>%
   data.frame()
 
-coral.df$U238 <- coral.df$U238 * 0.421
 nrow(coral.df)
 ```
 
 ```{r}
-#This is a favia, so removing favia removes it
-#coral[92,]
-#coral[coral$Source==74,]
-##obs 92 from site 74 is an extreme outlier
-#coral.df <- coral.df[-92,]
-```
+coral.summary =coral %>% mutate(Temperature = Temp, U238=U238*.421) %>%
+  select(U238,Age,Calcite,U234delta,pH,TAlk,Salinity,Temperature,OmegaA,TCO2) %>%
+  data.frame()
 
-```{r}
-## three outliers
-coral[c(114,647,661),]
+summary <- coral.summary %>%
+  gather %>% group_by(key) %>%
+  summarise("5%"=quantile(value,.05,na.rm=T),
+            median=median(value,na.rm=T),
+            mean=mean(value,na.rm=T),
+            "95%"=quantile(value,.95,na.rm=T)) %>%
+  as.data.frame()
+cbind(c(summary[,1]),round(summary[,-1],2))
+  
 ```
 
 ## Data Distribution
@@ -67,9 +69,9 @@ ggplot(gather(coral.df),aes(value))+
 
 Residuals vs fitted looks perfectly normal - no signs of non-linearity or heteroskedasticity.
 
-Normal Q-Q is somewhat concerning. According the shapiro test we reject the null hypothesis and conclude the data is non-normal.
+As can be seen in the normal q-q plot, there is some non-normality. In the KDE plot below, and with the shapiro test we can confirm that there is some right skew. However, with a large number of samples like this analysis, linear regression is quite robust to violations of the normality assumption. Furthermore, by excluding high percent calcite samples, we are confident that the samples in this analysis are of high quality. 
 
-Scale-location is maybe slightly non-linear, but not to an extent that is cause for concern. We can also formally test heteroskedasticity with a Breusch-Pagan test. The null hypothesis is homoskedasticity, and we fail to reject it.
+Scale-location shows that there is perhaps some slight increase in the magnitude of standardized residuals as the fitted value increases but not to an extent that is a clear violation of assumptions. 
 
 There are no conerning observations when looking at cook's distance in our residuals vs leverage plot.
 
@@ -86,7 +88,4 @@ par(mfrow=c(1,1))
 d<-density(final_model[['residuals']])
 plot(d,main='Residual KDE Plot',xlab='Residual value')
 shapiro.test(final_model[['residuals']])
-
-#scale-location additional analysis
-bptest(final_model)
 ```

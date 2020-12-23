@@ -21,7 +21,7 @@ library(MLmetrics)
 ## Data Setup
 Here we clean the data down to our selected sample and scale the predictors. 
 ```{r data,include=F}
-coral <- read.csv("C:/Users/shado/Documents/School/Fossil Coral/data/coral_3weighted.csv")
+coral <- read.csv("~/School/Fossil Coral/data/coral_3weighted.csv")
 
 #omit data with no response
 coral <- coral[!is.na(coral$U238),]
