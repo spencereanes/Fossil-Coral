@@ -11,6 +11,7 @@ editor_options:
 
 ```{r import, warning=F, include=F}
 library(tidyverse)
+library(gridExtra)
 ```
 
 ## Setup data
@@ -26,11 +27,11 @@ coral <- coral[!is.na(coral$U238),]
 genus_trim <- c("Acropora", "Porites")
 #remove coral with age > 10
 coral <- coral[which(coral$Genus %in% genus_trim),]  %>% dplyr::filter(Age < 10)
-coral <- coral[(coral$Calcite <= 1 | is.na(coral$Calcite)),]
 
 #clean up a nice dataframe
-coral.df <- coral %>% mutate(Temperature = Temp) %>%
-  select(U238,pH,TAlk,Salinity,Temperature,OmegaA,TCO2) %>%
+coral.df <- coral %>% mutate(Temperature = Temp,
+                             Calcite = ifelse(is.na(Calcite),"N/A",ifelse(Calcite>1,"Calcite>1","Calcite<=1"))) %>%
+  select(U238,pH,TAlk,Salinity,Temperature,OmegaA,TCO2,Calcite) %>%
   data.frame()
 
 coral.df$U238 <- coral.df$U238 * 0.421
@@ -39,27 +40,49 @@ nrow(coral.df)
 ```
 
 ```{r}
-coral[coral$LabID==9,]
-```
-
-```{r}
 library(corrplot)
-coral.df <- coral.df %>% rename( Temp = Temperature, Omega = OmegaA)
-corrplot.mixed(cor(coral.df),lower.col="black")
+coral.corr <- coral.df %>% rename( Temp = Temperature, Omega = OmegaA) %>% select(-Calcite)
+corrplot.mixed(cor(coral.corr),lower.col="black")
 
 ```
 
 ```{r}
-#coral.df$Calcite <- ifelse(coral$Calcite<1.1, "Calcite<1.1",ifelse(is.na(coral$Calcite),"N/A","Calcite>=1.1"))
-coral.df$Calcite <- ifelse(coral$Calcite>=1.1, "Calcite>=1.1","other")
-temp_coral <- coral.df
-temp_coral$Calcite <- "All"
-temp_coral <- rbind(coral.df,temp_coral)
-
-ggplot(temp_coral, aes(pH,U238))+
+f1 <- ggplot(coral.df, aes(pH,U238))+
   geom_point()+
   geom_smooth(method="lm")+
   facet_wrap(~Calcite)
+
+
+f2 <- ggplot(coral.df, aes(Temperature,U238))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~Calcite)
+
+
+f3 <- ggplot(coral.df, aes(Salinity,U238))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~Calcite)
+
+
+f4 <- ggplot(coral.df, aes(OmegaA,U238))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~Calcite)
+
+
+f5 <- ggplot(coral.df, aes(TCO2,U238))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~Calcite)
+
+
+f6 <- ggplot(coral.df, aes(TAlk,U238))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~Calcite)
+
+grid.arrange(f1,f2,f3,f4,f5,f6,ncol=2)
   
 ```
 
