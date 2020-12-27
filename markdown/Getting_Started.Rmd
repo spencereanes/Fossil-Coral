@@ -15,7 +15,7 @@ library(tidyverse)
 
 ## Importing the Data
 
-Data is contained in data/coral_3weighted.csv. This contains all the computed columns, but still needs to be filtered down. We remove NA U238 samples, include on samples of genus acropora nad porites, remove samples older than 10k years, and also remove all samples with a reported calcite value greater than 1. This should result in 700 rows in the data. This final data is stored in data/final_sample.csv.
+Data is contained in data/coral_3weighted.csv. This contains all the computed columns, but still needs to be filtered down. We remove N/A U238 samples, include only samples of genus *Acropora* and *Porites*, remove samples older than 10k years, and also remove all samples with a reported calcite value greater than 1. This should result in 700 rows in the data. This final data is stored in `data/final_sample.csv`.
 
 ```{r data}
 coral <- read.csv("~/School/Fossil Coral/data/coral_3weighted.csv")
