@@ -86,7 +86,7 @@ grid.arrange(f1,f2,f3,f4,f5,f6,ncol=2)
   
 ```
 
-## Figure A1 $R^2$
+## Figure A1 R values
 
 ```{r}
 df1 <- coral.df[coral.df$Calcite=="Calcite<=1",]
@@ -94,36 +94,34 @@ df2 <- coral.df[coral.df$Calcite=="Calcite>1",]
 df3 <- coral.df[coral.df$Calcite=="N/A",]
 nrow(df1)+nrow(df2)+nrow(df3)
 
-#use adj.r.squared for adjusted instead of regular r squared
-
 #temp
-summary(lm(U238 ~ Temperature, data=df1))$r.squared
-summary(lm(U238 ~ Temperature, data=df2))$r.squared
-summary(lm(U238 ~ Temperature, data=df3))$r.squared
+cor(df1$U238,df1$Temperature)
+cor(df2$U238,df2$Temperature)
+cor(df3$U238,df3$Temperature)
 
 #ph
-summary(lm(U238 ~ pH, data=df1))$r.squared
-summary(lm(U238 ~ pH, data=df2))$r.squared
-summary(lm(U238 ~ pH, data=df3))$r.squared
+cor(df1$U238,df1$pH)
+cor(df2$U238,df2$pH)
+cor(df3$U238,df3$pH)
 
 #salinity
-summary(lm(U238 ~ Salinity, data=df1))$r.squared
-summary(lm(U238 ~ Salinity, data=df2))$r.squared
-summary(lm(U238 ~ Salinity, data=df3))$r.squared
+cor(df1$U238,df1$Salinity)
+cor(df2$U238,df2$Salinity)
+cor(df3$U238,df3$Salinity)
 
 #omega
-summary(lm(U238 ~ OmegaA, data=df1))$r.squared
-summary(lm(U238 ~ OmegaA, data=df2))$r.squared
-summary(lm(U238 ~ OmegaA, data=df3))$r.squared
+cor(df1$U238,df1$OmegaA)
+cor(df2$U238,df2$OmegaA)
+cor(df3$U238,df3$OmegaA)
 
 #tco2
-summary(lm(U238 ~ TCO2, data=df1))$r.squared
-summary(lm(U238 ~ TCO2, data=df2))$r.squared
-summary(lm(U238 ~ TCO2, data=df3))$r.squared
+cor(df1$U238,df1$TCO2)
+cor(df2$U238,df2$TCO2)
+cor(df3$U238,df3$TCO2)
 
 #Talk
-summary(lm(U238 ~ TAlk, data=df1))$r.squared
-summary(lm(U238 ~ TAlk, data=df2))$r.squared
-summary(lm(U238 ~ TAlk, data=df3))$r.squared
+cor(df1$U238,df1$TAlk)
+cor(df2$U238,df2$TAlk)
+cor(df3$U238,df3$TAlk)
 ```
 
