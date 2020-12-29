@@ -4,7 +4,7 @@
 
 `residual_analysis.Rmd` contains analysis of linear modeling assumptions.
 
-`calcite_analysis.Rmd` breaks down environmental variables by calcite level of samples.
+`calcite_analysis.Rmd` breaks down environmental variables by calcite level of samples, including R^2 values for figure A2.
 
 `coral_bootstrap.Rmd` shows lasso bootstrap analysis.
 
